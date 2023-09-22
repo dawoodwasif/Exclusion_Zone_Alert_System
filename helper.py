@@ -177,7 +177,22 @@ def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tr
         cv2.putText(res_plotted, text, (x, y), font, font_scale, font_color, font_thickness)
         y += 20  # Increase the y-coordinate for the next text line
 
-        
+    # Display total count at the end
+    total_count = sum(breach_frequency.values())
+    total_text = f'Total Count: {total_count}'
+    cv2.putText(res_plotted, total_text, (x, y), font, font_scale, font_color, font_thickness+1)
+    y += 20  # Increase the y-coordinate for the next text line
+
+    # Write statistics to a text file
+    with open("stats.txt", "w") as f:
+        f.write("Unique IDs: " + str(len(breach_frequency)) + "\n")
+        f.write("Total Count: " + str(total_count) + "\n")
+        f.write("ID Frequencies:\n")
+        for id, count in breach_frequency.items():
+            f.write(f'ID: {id}, Count: {count}\n')
+
+
+
     #################################################################
 
 
@@ -300,7 +315,7 @@ def play_webcam(conf, model):
     stroke_width =  3
     stroke_color = "#000000"
     bg_color = "#eee"
-    DZ_BOX = 10,24,45,52,42,21,100,220
+    DZ_BOX = 0,0,0,0,0,0,0,0
     
     #bg_video = st.sidebar.file_uploader("Background video:", type=["mp4"])  # Accept mp4 video files
     realtime_update = True

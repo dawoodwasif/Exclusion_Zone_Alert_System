@@ -1,0 +1,4 @@
+Unique IDs: 1
+Total Count: 3
+ID Frequencies:
+ID: 1, Count: 3
