@@ -62,7 +62,7 @@ def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tr
     else:
         # Predict the objects in the image using the YOLOv8 model
         res = model.predict(image, conf=conf, classes=0)
-
+        
     # # Plot the detected objects on the video frame
     res_plotted = res[0].plot()
     
@@ -387,16 +387,6 @@ def play_stored_video(conf, model):
         
         if "first_frame_vid" in st.session_state:
             del st.session_state.first_frame_vid
-
-        
-    # if st.sidebar.button('Select Danger Zone'):
-    #     # coord = []
-    #     # while coord == []:
-    #     #     coord = canvas.select_polygon(str(settings.VIDEOS_DICT.get(source_vid)))
-        
-    #     # st.subheader(coord)
-        
-    #     ########################
     
 
     st.write("Draw your polygon on the canvas below:")
@@ -407,7 +397,7 @@ def play_stored_video(conf, model):
     stroke_width =  3
     stroke_color = "#000000"
     bg_color = "#eee"
-    DZ_BOX = 0,0,0,0,0,0
+    DZ_BOX = 0,0,0,0,0,0,0,0
     
     #bg_video = st.sidebar.file_uploader("Background video:", type=["mp4"])  # Accept mp4 video files
     realtime_update = True
@@ -519,7 +509,7 @@ def play_stored_video(conf, model):
         for col in objects.select_dtypes(include=['object']).columns:
             objects[col] = objects[col].astype("str")
         st.dataframe(objects)  
-        
+    
         DZ_BOX = X1, Y1, X2, Y2, X3, Y3, X4, Y4
         
         if st.button("Upload Polygon"):
