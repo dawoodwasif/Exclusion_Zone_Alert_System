@@ -12,7 +12,14 @@ from streamlit_drawable_canvas import st_canvas
 import cv2
 import numpy as np
 
+from utils import calculate_iou
+
 first_frame = True
+
+# Initialize
+breach_frequency = {}
+prev_active_breachers = set()
+
 
 def load_model(model_path):
     """
@@ -37,7 +44,7 @@ def display_tracker_options():
     return is_display_tracker, None
 
 
-def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tracking=None, tracker=None):
+def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tracking=None, tracker=None, first_frame_flag = False):
     """
     Display the detected objects on a video frame using the YOLOv8 model.
 
@@ -55,6 +62,7 @@ def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tr
     
     # Resize the image to a standard size
     image = cv2.resize(image, (W, H))
+    
 
     # Display object tracking, if specified
     if is_display_tracking:
@@ -62,11 +70,27 @@ def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tr
     else:
         # Predict the objects in the image using the YOLOv8 model
         res = model.predict(image, conf=conf, classes=0)
-        
+    
+                
     # # Plot the detected objects on the video frame
     res_plotted = res[0].plot()
     
-    ##############
+    
+    ############## DRAW LINE AT BOTTOM 10% #################
+    IDs = res[0].boxes.id
+    XYXYs = res[0].boxes.xyxy
+    
+    for i in range(len(XYXYs)):
+        x_min, y_min, x_max, y_max = map(int, XYXYs[i].tolist())
+        box_height = y_max - y_min
+        line_y = int(y_max - 0.1 * box_height)  # Calculate the y-coordinate for the line
+        
+        # Draw a horizontal line inside the bounding box
+        cv2.line(res_plotted, (x_min, line_y), (x_max, line_y), (0, 0, 255), 2)
+    
+    ##########################################################
+    
+    ############## DRAW DANGER ZONE ##########################
     x3, y3, x4, y4, x5, y5, x6, y6 = dz_box
     points = np.array([[x3, y3], [x4, y4], [x5, y5], [x6, y6]], np.int32)
     points = points.reshape((-1, 1, 2))
@@ -91,7 +115,71 @@ def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tr
     # Draw the polygon outline on the image
     cv2.polylines(res_plotted, [points], isClosed=True, color=outline_color, thickness=thickness)
 
-    ##############
+    ################################################################
+    
+    ############## Find Breachers in the Danger Zone ################
+    
+    # Calculate IoU for each box with the polygon
+    iou_threshold = 0.01
+    polygon = [(x3, y3), (x4, y4), (x5, y5), (x6, y6)]
+
+    
+    iou_values = [calculate_iou(box, polygon) for box in XYXYs]
+
+    try:
+        # Filter IDs that exceed the IoU threshold
+        intersected_ids = [int(IDs[i]) for i in range(len(IDs)) if iou_values[i] > iou_threshold]
+    except:
+        intersected_ids = []
+    
+    #################################################################
+    
+    
+    #################### Count and Display Breachers ################
+    
+    # Initialize
+    global breach_frequency, prev_active_breachers 
+    
+    if first_frame_flag: 
+        breach_frequency = {}
+        prev_active_breachers = set()
+
+    # For each frame, update the active_breachers list
+    active_breachers = intersected_ids  # This should be updated for each frame
+
+    # Convert current list to a set for efficient operations
+    current_set = set(active_breachers)
+
+    # Find new entries: people who are currently active but weren't in the previous frame
+    new_entries = current_set - prev_active_breachers
+
+    # Update the breach frequency for each new entry
+    for person_id in new_entries:
+        breach_frequency[person_id] = breach_frequency.get(person_id, 0) + 1
+
+    # Set the current active breachers as the previous for the next iteration
+    prev_active_breachers = current_set
+
+    # Display the entry counts for each person
+    for id, count in breach_frequency.items():
+        print(f"Person {id}: Entered {count} times.")
+  
+
+    # Display the entry counts on the image frame
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.5
+    font_color = (255, 255, 255)
+    font_thickness = 1
+    x, y = 10, 20  # Position to display the text
+
+    for id, count in breach_frequency.items():
+        text = f'ID: {id}, Count: {count}'
+        cv2.putText(res_plotted, text, (x, y), font, font_scale, font_color, font_thickness)
+        y += 20  # Increase the y-coordinate for the next text line
+
+        
+    #################################################################
+
 
     st_frame.image(res_plotted,
                    caption='Detected Video',
@@ -201,6 +289,7 @@ def play_webcam(conf, model):
     source_webcam = settings.WEBCAM_PATH
     is_display_tracker, tracker = display_tracker_options()
     
+    st.write("### Select Danger Zone:")
     st.write("Draw your polygon on the canvas below:")
     
     
@@ -339,11 +428,18 @@ def play_webcam(conf, model):
     
     
     if st.sidebar.button('Detect Objects'):
+        st.write("### Real Time Detection:")
+        if "first_frame_detection" in st.session_state:
+            del st.session_state.first_frame_detection
         try:
             dz_box = DZ_BOX
             vid_cap = cv2.VideoCapture(source_webcam)
             st_frame = st.empty()
             while (vid_cap.isOpened()):
+                first_frame_flag = False
+                if "first_frame_detection" not in st.session_state:
+                        st.session_state.first_frame_detection = True
+                        first_frame_flag = True
                 success, image = vid_cap.read()
                 if success:
                     _display_detected_frames(conf,
@@ -353,6 +449,7 @@ def play_webcam(conf, model):
                                              dz_box,
                                              is_display_tracker,
                                              tracker,
+                                             first_frame_flag
                                              )
                 else:
                     vid_cap.release()
@@ -387,8 +484,11 @@ def play_stored_video(conf, model):
         
         if "first_frame_vid" in st.session_state:
             del st.session_state.first_frame_vid
+        
+        if "first_frame_detection" in st.session_state:
+            del st.session_state.first_frame_detection
     
-
+    st.write("### Select Danger Zone:")
     st.write("Draw your polygon on the canvas below:")
    
     bg_video = str(settings.VIDEOS_DICT.get(source_vid))
@@ -521,13 +621,20 @@ def play_stored_video(conf, model):
 
     if st.sidebar.button('Detect Video Objects'):
         try:
+            st.write("### Real Time Detection:")
             dz_box = DZ_BOX
             print(dz_box)
             vid_cap = cv2.VideoCapture(
                 str(settings.VIDEOS_DICT.get(source_vid)))
             st_frame = st.empty()
             while (vid_cap.isOpened()):
+                first_frame_flag = False
                 success, image = vid_cap.read()
+                
+                if "first_frame_detection" not in st.session_state:
+                        st.session_state.first_frame_detection = True
+                        first_frame_flag = True
+    
                 if success:
                     _display_detected_frames(conf,
                                              model,
@@ -536,6 +643,8 @@ def play_stored_video(conf, model):
                                              dz_box,
                                              is_display_tracker,
                                              tracker,
+                                             first_frame_flag,
+
                                              )
                 else:
                     vid_cap.release()
