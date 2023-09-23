@@ -87,7 +87,7 @@ model_type = st.sidebar.radio(
     "Select Task", ['Detection', 'Segmentation'])
 
 confidence = float(st.sidebar.slider(
-    "Select Model Confidence (%)", 25, 100, 40)) / 100
+    "Select Model Confidence (%)", 0, 100, 30)) / 100
 
 iou_threshold = float(st.sidebar.slider(
     "Select IoU Threshold (%)", 25, 100, 5)) / 100
