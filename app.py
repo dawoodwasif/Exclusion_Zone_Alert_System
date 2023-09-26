@@ -145,6 +145,7 @@ if source_radio == settings.IMAGE:
                     # st.write(ex)
                     st.write("No image is uploaded yet!")
 
+# Execute helper function upon selection of a radio button
 elif source_radio == settings.VIDEO:
     helper.play_stored_video(confidence, model)
 
@@ -153,9 +154,6 @@ elif source_radio == settings.WEBCAM:
 
 elif source_radio == settings.RTSP:
     helper.play_rtsp_stream(confidence, model)
-
-elif source_radio == settings.YOUTUBE:
-    helper.play_youtube_video(confidence, model)
 
 else:
     st.error("Please select a valid source type!")

@@ -76,7 +76,7 @@ def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tr
     res_plotted = res[0].plot()
     
     
-    ############## DRAW LINE AT BOTTOM 10% #################
+    ############## Draw horizontal line at bottom 10% #################
     IDs = res[0].boxes.id
     XYXYs = res[0].boxes.xyxy
     
@@ -88,9 +88,9 @@ def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tr
         # Draw a horizontal line inside the bounding box
         cv2.line(res_plotted, (x_min, line_y), (x_max, line_y), (0, 0, 255), 2)
     
-    ##########################################################
+    #####################################################################
     
-    ############## DRAW DANGER ZONE ##########################
+    ################## Draw Danger Zone Polygon #########################
     x3, y3, x4, y4, x5, y5, x6, y6 = dz_box
     points = np.array([[x3, y3], [x4, y4], [x5, y5], [x6, y6]], np.int32)
     points = points.reshape((-1, 1, 2))
@@ -191,8 +191,6 @@ def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tr
         for id, count in breach_frequency.items():
             f.write(f'ID: {id}, Count: {count}\n')
 
-
-
     #################################################################
 
 
@@ -201,48 +199,6 @@ def _display_detected_frames(conf, model, st_frame, image, dz_box, is_display_tr
                    channels="BGR",
                    use_column_width=True
                    )
-
-
-def play_youtube_video(conf, model):
-    """
-    Plays a webcam stream. Detects Objects in real-time using the YOLOv8 object detection model.
-
-    Parameters:
-        conf: Confidence of YOLOv8 model.
-        model: An instance of the `YOLOv8` class containing the YOLOv8 model.
-
-    Returns:
-        None
-
-    Raises:
-        None
-    """
-    source_youtube = st.sidebar.text_input("YouTube Video url")
-
-    is_display_tracker, tracker = display_tracker_options()
-
-    if st.sidebar.button('Detect Objects'):
-        try:
-            yt = YouTube(source_youtube)
-            stream = yt.streams.filter(file_extension="mp4", res=720).first()
-            vid_cap = cv2.VideoCapture(stream.url)
-
-            st_frame = st.empty()
-            while (vid_cap.isOpened()):
-                success, image = vid_cap.read()
-                if success:
-                    _display_detected_frames(conf,
-                                             model,
-                                             st_frame,
-                                             image,
-                                             is_display_tracker,
-                                             tracker,
-                                             )
-                else:
-                    vid_cap.release()
-                    break
-        except Exception as e:
-            st.sidebar.error("Error loading video: " + str(e))
 
 
 def play_rtsp_stream(conf, model):
